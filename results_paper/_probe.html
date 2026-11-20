@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>probe</title></head>
+<body style="font-family:monospace;font-size:12px;background:#fff">
+<h3>Probe: can preview reach project data files?</h3>
+<pre id="out">working...</pre>
+<script>
+const CANDS = [
+  "../dataset/processed/classes.npy",
+  "/dataset/processed/classes.npy",
+  "dataset/processed/classes.npy",
+  "../results/Y_test_probabilities.npy",
+  "/results/Y_test_probabilities.npy",
+  "../dataset/processed/Y_test.npy",
+  "/dataset/processed/Y_test.npy",
+  "../dataset/processed/best_thresholds.npy",
+  "/dataset/processed/best_thresholds.npy",
+  "../results/improved_accuracy_curve.png"
+];
+const lines = [];
+
+function parseNpy(buf){
+  const dv = new DataView(buf);
+  const magic = String.fromCharCode(dv.getUint8(0),dv.getUint8(1));
+  if(magic !== "\x93N") throw new Error("not npy");
+  const major = dv.getUint8(6);
+  let headerLen, headerStart;
+  if(major === 1){ headerLen = dv.getUint16(8,true); headerStart = 10; }
+  else { headerLen = dv.getUint32(8,true); headerStart = 12; }
+  const header = new TextDecoder("latin1").decode(new Uint8Array(buf, headerStart, headerLen));
+  const descr = (header.match(/'descr':\s*'([^']+)'/)||[])[1];
+  const fortran = /'fortran_order':\s*True/.test(header);
+  const shapeTxt = (header.match(/'shape':\s*\(([^)]*)\)/)||[])[1];
+  const shape = shapeTxt.split(",").map(s=>s.trim()).filter(s=>s.length).map(Number);
+  const dataStart = headerStart + headerLen;
+  return {descr, fortran, shape, dataStart, buf};
+}
+
+async function tryFetch(p){
+  try{
+    const r = await fetch(p, {cache:"no-store"});
+    if(!r.ok){ lines.push(p+" -> HTTP "+r.status); return null; }
+    const b = await r.arrayBuffer();
+    let info="";
+    try{ const h=parseNpy(b); info=" npy descr="+h.descr+" shape=["+h.shape.join(",")+"] dataStart="+h.dataStart+" bytes="+b.byteLength; }
+    catch(e){ info=" (not npy: "+e.message+", "+b.byteLength+" bytes)"; }
+    lines.push(p+" -> OK 200"+info);
+    return b;
+  }catch(e){ lines.push(p+" -> FAILED: "+e.message); return null; }
+}
+
+(async ()=>{
+  for(const p of CANDS) await tryFetch(p);
+  document.getElementById("out").textContent = lines.join("\n");
+  window.__probeDone = true;
+})();
+</script>
+</body>
+</html>

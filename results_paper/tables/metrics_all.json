@@ -1,0 +1,166 @@
+{
+  "classes": [
+    "NORM",
+    "MI",
+    "STTC",
+    "HYP",
+    "CD"
+  ],
+  "threshold_source": "best_thresholds.npy (per-class validation sweep 0.30-0.70)",
+  "thresholds": [
+    0.44999999999999996,
+    0.3,
+    0.35,
+    0.3,
+    0.44999999999999996
+  ],
+  "probability_source": "results/Y_test_probabilities.npy (saved by src/04_results.py)",
+  "n_train": 14234,
+  "n_val": 1891,
+  "n_test": 1903,
+  "train_positives": [
+    6569,
+    3435,
+    3436,
+    1751,
+    3205
+  ],
+  "val_positives": [
+    865,
+    456,
+    463,
+    241,
+    430
+  ],
+  "test_positives": [
+    870,
+    473,
+    464,
+    240,
+    422
+  ],
+  "per_class": {
+    "NORM": {
+      "precision": 0.7809798270893372,
+      "recall": 0.9344827586206896,
+      "sensitivity": 0.9344827586206896,
+      "specificity": 0.7792836398838335,
+      "f1": 0.8508634222919939,
+      "support": 870,
+      "tp": 813,
+      "tn": 805,
+      "fp": 228,
+      "fn": 57,
+      "threshold": 0.44999999999999996
+    },
+    "MI": {
+      "precision": 0.7994652406417112,
+      "recall": 0.6321353065539113,
+      "sensitivity": 0.6321353065539113,
+      "specificity": 0.9475524475524476,
+      "f1": 0.7060212514757969,
+      "support": 473,
+      "tp": 299,
+      "tn": 1355,
+      "fp": 75,
+      "fn": 174,
+      "threshold": 0.3
+    },
+    "STTC": {
+      "precision": 0.7805429864253394,
+      "recall": 0.7435344827586207,
+      "sensitivity": 0.7435344827586207,
+      "specificity": 0.9325920778318276,
+      "f1": 0.7615894039735099,
+      "support": 464,
+      "tp": 345,
+      "tn": 1342,
+      "fp": 97,
+      "fn": 119,
+      "threshold": 0.35
+    },
+    "HYP": {
+      "precision": 0.3469387755102041,
+      "recall": 0.6375,
+      "sensitivity": 0.6375,
+      "specificity": 0.8268190018039687,
+      "f1": 0.44933920704845814,
+      "support": 240,
+      "tp": 153,
+      "tn": 1375,
+      "fp": 288,
+      "fn": 87,
+      "threshold": 0.3
+    },
+    "CD": {
+      "precision": 0.787292817679558,
+      "recall": 0.6753554502369669,
+      "sensitivity": 0.6753554502369669,
+      "specificity": 0.9480081026333559,
+      "f1": 0.7270408163265306,
+      "support": 422,
+      "tp": 285,
+      "tn": 1404,
+      "fp": 77,
+      "fn": 137,
+      "threshold": 0.44999999999999996
+    }
+  },
+  "aggregate": {
+    "test_elementwise_accuracy": 0.8592748292170258,
+    "subset_accuracy": 0.5780346820809249,
+    "hamming_loss": 0.14072517078297425,
+    "micro": {
+      "precision": 0.7124060150375939,
+      "recall": 0.7675172134467396,
+      "f1": 0.7389354650029245
+    },
+    "macro": {
+      "precision": 0.69904392946923,
+      "recall": 0.7246015996340376,
+      "f1": 0.6989708202232578
+    },
+    "weighted": {
+      "precision": 0.7433269863409611,
+      "recall": 0.7675172134467396,
+      "f1": 0.7461439234375136
+    },
+    "specificity_macro": 0.8868510539410867,
+    "specificity_micro": 0.8914277604314504,
+    "roc_auc_macro": 0.903114226172212,
+    "roc_auc_micro": 0.9161973501219263,
+    "roc_auc_per_class": {
+      "NORM": 0.9371365624061153,
+      "MI": 0.9233903517201615,
+      "STTC": 0.92984531882773,
+      "HYP": 0.8110317698937664,
+      "CD": 0.9141671280132867
+    },
+    "pr_auc_macro": 0.7710746775652404,
+    "pr_auc_per_class": {
+      "NORM": 0.9136650550626753,
+      "MI": 0.8222396333861336,
+      "STTC": 0.822505770177741,
+      "HYP": 0.47420320151522594,
+      "CD": 0.8227597276844265
+    },
+    "bce_unweighted": 0.3510372677772557
+  },
+  "validation": {
+    "available": true,
+    "val_elementwise_accuracy": 0.864516129032258,
+    "val_subset_accuracy": 0.5859333685880487,
+    "val_micro_f1": 0.7351664254703328,
+    "val_macro_f1": 0.6641842123338102
+  },
+  "training_history": {
+    "available": false,
+    "reason": "Insufficient data available to calculate this metric.",
+    "note": "The trained model's curves exist only as the PNGs results/improved_accuracy_curve.png and results/improved_loss_curve.png, which are the genuine training/validation plots from src/02_train_model.py. Per-epoch numeric values were never saved.",
+    "reused_images": true
+  },
+  "not_available": {
+    "training_time_weighted_bce_test_loss": "Insufficient data available to calculate this metric.",
+    "per_epoch_training_history": "Insufficient data available to calculate this metric."
+  }
+}

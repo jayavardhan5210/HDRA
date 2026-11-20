@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Heart Disease Risk Assessment Agent — Paper Figures &amp; Metrics</title>
+<style>
+  :root { --blue:#2166ac; --red:#b2182b; --green:#1b7837; --purple:#762a83; --orange:#e08214; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:24px 28px 80px; background:#fff; color:#111;
+         font-family: Cambria, Georgia, "Times New Roman", serif; font-size:15px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  h2 { font-size:18px; margin:36px 0 10px; border-bottom:1px solid #ddd; padding-bottom:5px; }
+  .sub { color:#555; font-size:13px; margin-bottom:18px; }
+  #drop { border:2px dashed #9bb4cf; border-radius:8px; padding:22px; text-align:center;
+          background:#f7fafd; cursor:pointer; }
+  #drop.hot { background:#e8f1fa; border-color:#2166ac; }
+  #drop b { color:#2166ac; }
+  #filelist { margin:12px 0 6px; font-size:12.5px; font-family:Consolas,monospace; color:#333; }
+  .ok { color:#1b7837; } .miss { color:#b2182b; }
+  button { font-family:inherit; font-size:14px; padding:8px 16px; border-radius:5px;
+           border:1px solid #2166ac; background:#2166ac; color:#fff; cursor:pointer; }
+  button:disabled { background:#c7d3e0; border-color:#c7d3e0; cursor:not-allowed; }
+  button.ghost { background:#fff; color:#2166ac; margin-left:8px; }
+  .figwrap { margin:14px 0 30px; }
+  .figtitle { font-size:14px; font-weight:bold; margin-bottom:6px; }
+  .svgbox { overflow-x:auto; }
+  table { border-collapse:collapse; font-size:13.5px; margin:8px 0 20px; }
+  th, td { border:1px solid #bbb; padding:5px 11px; text-align:right; }
+  th:first-child, td:first-child { text-align:left; }
+  thead th { background:#eef3f8; }
+  .note { font-size:12.5px; color:#444; background:#fbf7ea; border-left:4px solid #e08214;
+          padding:10px 14px; margin:14px 0; }
+  .cap { font-size:13px; font-style:italic; color:#333; margin-top:6px; }
+</style>
+</head>
+<body>
+
+<h1>Heart Disease Risk Assessment Agent</h1>
+<div class="sub">Paper-ready figures &amp; metrics — generated in your browser from your own
+<code>.npy</code> files. Nothing is uploaded, nothing on disk is modified, and the model is never retrained.</div>
+
+<div id="drop">
+  <b>Drag &amp; drop your .npy files here</b> (or click to choose)<br>
+  <span style="font-size:13px;color:#555">
+    from <code>dataset\processed\</code> : <code>classes.npy</code>, <code>Y_test.npy</code>,
+    <code>Y_train.npy</code>, <code>Y_val.npy</code>, <code>best_thresholds.npy</code><br>
+    from <code>results\</code> : <code>Y_test_probabilities.npy</code>
+  </span>
+</div>
+<input type="file" id="picker" multiple style="display:none">
+<div id="filelist"></div>
+<div>
+  <button id="go" disabled>Generate figures &amp; metrics</button>
+  <button id="clear" class="ghost">Reset</button>
+</div>
+<div id="status" class="note" style="display:none"></div>
+<div id="out"></div>
+
+<script>
+"use strict";
+
+/* =====================================================================
+   .npy reader
+   ===================================================================== */
+function parseNpy(buf) {
+  const dv = new DataView(buf);
+  if (dv.getUint8(0) !== 0x93 || dv.getUint8(1) !== 0x4E) throw new Error("not a .npy file");
+  const major = dv.getUint8(6);
+  let headerLen, headerStart;
+  if (major === 1) { headerLen = dv.getUint16(8, true); headerStart = 10; }
+  else { headerLen = dv.getUint32(8, true); headerStart = 12; }
+  const header = new TextDecoder("latin1").decode(new Uint8Array(buf, headerStart, headerLen));
+  const mD = header.match(/'descr'\s*:\s*'([^']+)'/);
+  const descr = mD ? mD[1] : "";
+  const mS = header.match(/'shape'\s*:\s*\(([^)]*)\)/);
+  const shape = (mS ? mS[1] : "").split(",").map(s => s.trim())
+                  .filter(s => s.length).map(Number);
+  const start = headerStart + headerLen;
+  const n = shape.reduce((a, b) => a * b, 1);
+  const body = buf.slice(start);           // fresh copy -> byteOffset 0
+  const kind = descr.replace(/[<>=|]/, "");
+
+  if (kind === "U4") {
+    const cp = new Uint32Array(body, 0, n * 4);
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      let s = "";
+      for (let k = 0; k < 4; k++) {
+        const c = cp[i * 4 + k];
+        if (c === 0) break;
+        s += String.fromCodePoint(c);
+      }
+      out.push(s);
+    }
+    return { descr: descr, shape: shape, strings: out };
+  }
+
+  let values;
+  if (kind === "f8") values = Array.from(new Float64Array(body, 0, n));
+  else if (kind === "f4") values = Array.from(new Float32Array(body, 0, n));
+  else if (kind === "i8") values = Array.from(new BigInt64Array(body, 0, n), Number);
+  else if (kind === "u8") values = Array.from(new BigUint64Array(body, 0, n), Number);
+  else if (kind === "i4") values = Array.from(new Int32Array(body, 0, n));
+  else if (kind === "u4") values = Array.from(new Uint32Array(body, 0, n));
+  else if (kind === "i2") values = Array.from(new Int16Array(body, 0, n));
+  else if (kind === "u1" || kind === "i1") values = Array.from(new Uint8Array(body, 0, n));
+  else throw new Error("unsupported dtype " + descr);
+  return { descr: descr, shape: shape, values: values };
+}
+
+function toMatrix(parsed, nCols) {
+  if (!parsed.values) throw new Error("expected a numeric array");
+  const v = parsed.values, nRows = v.length / nCols, rows = [];
+  for (let r = 0; r < nRows; r++) {
+    const row = new Array(nCols);
+    for (let c = 0; c < nCols; c++) row[c] = v[r * nCols + c];
+    rows.push(row);
+  }
+  return rows;
+}
+
+/* =====================================================================
+   Metrics
+   ===================================================================== */
+function computeMetrics(Y, P) {
+  const N = Y.length, C = Y[0].length;
+  const per = [];
+  for (let c = 0; c < C; c++) {
+    let tp = 0, tn = 0, fp = 0, fn = 0;
+    for (let i = 0; i < N; i++) {
+      const t = Y[i][c], p = P[i][c];
+      if (t === 1 && p === 1) tp++;
+      else if (t === 0 && p === 0) tn++;
+      else if (t === 0 && p === 1) fp++;
+      else fn++;
+    }
+    const prec = (tp + fp) ? tp / (tp + fp) : 0;
+    const rec = (tp + fn) ? tp / (tp + fn) : 0;
+    const f1 = (prec + rec) ? 2 * prec * rec / (prec + rec) : 0;
+    const spec = (tn + fp) ? tn / (tn + fp) : 0;
+    per.push({ tp, tn, fp, fn, prec, rec, f1, spec, support: tp + fn });
+  }
+  const A = (k) => per.reduce((a, d) => a + d[k], 0);
+  const TP = A("tp"), TN = A("tn"), FP = A("fp"), FN = A("fn");
+  const microP = (TP + FP) ? TP / (TP + FP) : 0;
+  const microR = (TP + FN) ? TP / (TP + FN) : 0;
+  const microF = (microP + microR) ? 2 * microP * microR / (microP + microR) : 0;
+  const microSpec = (TN + FP) ? TN / (TN + FP) : 0;
+  const mean = (k) => per.reduce((a, d) => a + d[k], 0) / C;
+  const totSup = per.reduce((a, d) => a + d.support, 0) || 1;
+  const wmean = (k) => per.reduce((a, d) => a + d[k] * d.support, 0) / totSup;
+
+  let exact = 0;
+  for (let i = 0; i < N; i++) {
+    let all = true;
+    for (let c = 0; c < C; c++) if (Y[i][c] !== P[i][c]) { all = false; break; }
+    if (all) exact++;
+  }
+  const elementAcc = (TP + TN) / (N * C);
+
+  return {
+    per: per,
+    micro: { prec: microP, rec: microR, f1: microF, spec: microSpec },
+    macro: { prec: mean("prec"), rec: mean("rec"), f1: mean("f1"), spec: mean("spec") },
+    weighted: { prec: wmean("prec"), rec: wmean("rec"), f1: wmean("f1") },
+    elementAcc: elementAcc,
+    subsetAcc: exact / N,
+    hamming: 1 - elementAcc
+  };
+}
+
+function trapz(x, y) {
+  let a = 0;
+  for (let i = 0; i + 1 < x.length; i++) a += (x[i + 1] - x[i]) * (y[i] + y[i + 1]) / 2;
+  return a;
+}
+
+function rocCurve(yt, ys) {
+  const P = yt.reduce((a, b) => a + b, 0), N = yt.length - P;
+  if (P === 0 || N === 0) return null;
+  const order = ys.map((_, i) => i).sort((a, b) => ys[b] - ys[a]);
+  const fpr = [0], tpr = [0];
+  let tp = 0, fp = 0, prev = null;
+  for (let k = 0; k < order.length; k++) {
+    const i = order[k];
+    if (prev !== null && ys[i] !== prev) { fpr.push(fp / N); tpr.push(tp / P); }
+    if (yt[i] === 1) tp++; else fp++;
+    prev = ys[i];
+  }
+  fpr.push(1); tpr.push(1);
+  return { fpr: fpr, tpr: tpr, auc: trapz(fpr, tpr) };
+}
+
+function prCurve(yt, ys) {
+  const P = yt.reduce((a, b) => a + b, 0);
+  if (P === 0) return null;
+  const order = ys.map((_, i) => i).sort((a, b) => ys[b] - ys[a]);
+  const prec = [1], rec = [0];
+  let tp = 0, fp = 0, prev = null;
+  for (let k = 0; k < order.length; k++) {
+    const i = order[k];
+    if (prev !== null && ys[i] !== prev) { prec.push(tp / (tp + fp || 1)); rec.push(tp / P); }
+    if (yt[i] === 1) tp++; else fp++;
+    prev = ys[i];
+  }
+  prec.push(tp / (tp + fp || 1)); rec.push(1);
+  let ap = 0, prevR = 0;
+  for (let k = 0; k < rec.length; k++) {
+    if (rec[k] > prevR) { ap += (rec[k] - prevR) * prec[k]; prevR = rec[k]; }
+  }
+  return { precision: prec, recall: rec, ap: ap };
+}
+
+/* =====================================================================
+   Tiny SVG chart library (white background, serif, no decoration)
+   ===================================================================== */
+const NS = "http://www.w3.org/2000/svg";
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function svgOpen(w, h) {
+  return '<svg xmlns="' + NS + '" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h +
+         '" font-family="Cambria, Georgia, serif"><rect width="' + w + '" height="' + h + '" fill="#ffffff"/>';
+}
+function txt(x, y, s, o) {
+  o = o || {};
+  return '<text x="' + x + '" y="' + y + '" font-size="' + (o.size || 13) + '"' +
+         ' text-anchor="' + (o.anchor || "start") + '" fill="' + (o.fill || "#111") + '"' +
+         (o.weight ? ' font-weight="' + o.weight + '"' : "") +
+         (o.rotate ? ' transform="rotate(' + o.rotate + ' ' + x + ' ' + y + ')"' : "") +
+         '>' + esc(s) + "</text>";
+}
+function line(x1, y1, x2, y2, o) {
+  o = o || {};
+  return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="' + (o.stroke || "#333") +
+         '" stroke-width="' + (o.w || 1) + '"' + (o.dash ? ' stroke-dasharray="' + o.dash + '"' : "") + "/>";
+}
+
+function axesChart(w, h, xlab, ylab, pad) {
+  pad = pad || { l: 74, r: 26, t: 26, b: 62 };
+  const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
+  let s = "";
+  for (let i = 0; i <= 10; i++) {
+    const y = pad.t + ih - ih * i / 10;
+    s += line(pad.l, y, pad.l + iw, y, { stroke: "#e6e6e6" });
+    s += txt(pad.l - 9, y + 4, (i / 10).toFixed(1), { anchor: "end", size: 11, fill: "#444" });
+  }
+  s += line(pad.l, pad.t, pad.l, pad.t + ih, { stroke: "#333" });
+  s += line(pad.l, pad.t + ih, pad.l + iw, pad.t + ih, { stroke: "#333" });
+  s += txt(pad.l + iw / 2, h - 22, xlab, { anchor: "middle", size: 13 });
+  s += txt(16, pad.t + ih / 2, ylab, { anchor: "middle", size: 13, rotate: -90 });
+  return { pre: s, pad: pad, iw: iw, ih: ih,
+           X: (v) => pad.l + iw * v, Y: (v) => pad.t + ih - ih * v };
+}
+
+function legend(x, y, items) {
+  let s = "", cy = y;
+  items.forEach(it => {
+    s += '<line x1="' + x + '" y1="' + cy + '" x2="' + (x + 22) + '" y2="' + cy + '" stroke="' + it.color +
+         '" stroke-width="2.4"' + (it.dash ? ' stroke-dasharray="' + it.dash + '"' : "") + "/>";
+    s += txt(x + 28, cy + 4, it.label, { size: 12 });
+    cy += 19;
+  });
+  return s;
+}
+
+function groupedBars(classes, series, w, h) {
+  const A = axesChart(w, h, "Disease class", "Score");
+  let s = svgOpen(w, h) + A.pre;
+  const n = classes.length, gn = series.length, gw = A.iw / n, bw = Math.min(30, (gw * 0.72) / gn);
+  for (let i = 0; i < n; i++) {
+    const cx = A.pad.l + gw * i + gw / 2;
+    for (let g = 0; g < gn; g++) {
+      const v = series[g].values[i];
+      const x = cx - (gn * bw) / 2 + g * bw;
+      const y = A.Y(v), y0 = A.Y(0);
+      s += '<rect x="' + x + '" y="' + y + '" width="' + (bw - 2) + '" height="' + Math.max(0, y0 - y) +
+           '" fill="' + series[g].color + '"/>';
+      s += txt(x + (bw - 2) / 2, y - 4, v.toFixed(2), { anchor: "middle", size: 9.5 });
+    }
+    s += txt(cx, A.pad.t + A.ih + 20, classes[i], { anchor: "middle", size: 12 });
+  }
+  s += legend(A.pad.l + 6, A.pad.t + 12, series.map(z => ({ color: z.color, label: z.label })));
+  return s + "</svg>";
+}
+
+function simpleBars(names, values, w, h) {
+  const A = axesChart(w, h, "", "Score", { l: 74, r: 26, t: 26, b: 86 });
+  let s = svgOpen(w, h) + A.pre;
+  const n = names.length, gw = A.iw / n, bw = Math.min(56, gw * 0.62);
+  for (let i = 0; i < n; i++) {
+    const cx = A.pad.l + gw * i + gw / 2;
+    const v = values[i];
+    const y = A.Y(v), y0 = A.Y(0);
+    s += '<rect x="' + (cx - bw / 2) + '" y="' + y + '" width="' + bw + '" height="' + Math.max(0, y0 - y) +
+         '" fill="#2166ac"/>';
+    s += txt(cx, y - 5, v.toFixed(3), { anchor: "middle", size: 11 });
+    s += txt(cx, A.pad.t + A.ih + 18, String(names[i]).replace(/\n/g, " "), { anchor: "end", size: 11, rotate: -32 });
+  }
+  return s + "</svg>";
+}
+
+function curveChart(series, xlab, ylab, w, h, refLine) {
+  const A = axesChart(w, h, xlab, ylab);
+  let s = svgOpen(w, h) + A.pre;
+  if (refLine) s += line(A.X(0), A.Y(0), A.X(1), A.Y(1), { stroke: "#999", dash: "5 4" });
+  series.forEach(z => {
+    let d = "";
+    for (let i = 0; i < z.x.length; i++) {
+      d += (i ? " L" : "M") + A.X(z.x[i]).toFixed(2) + " " + A.Y(z.y[i]).toFixed(2);
+    }
+    s += '<path d="' + d + '" fill="none" stroke="' + z.color + '" stroke-width="2"' +
+         (z.dash ? ' stroke-dasharray="' + z.dash + '"' : "") + "/>";
+  });
+  s += legend(A.pad.l + A.iw - 210, A.pad.t + 14, series.map(z => ({ color: z.color, label: z.label, dash: z.dash })));
+  return s + "</svg>";
+}
+
+function pieChart(labels, values, title, w, h) {
+  const total = values.reduce((a, b) => a + b, 0) || 1;
+  const cx = w * 0.36, cy = h * 0.52, r = Math.min(w * 0.28, h * 0.40);
+  const cols = ["#2166ac", "#b2182b", "#1b7837", "#762a83", "#e08214"];
+  let s = svgOpen(w, h);
+  s += txt(w / 2, 26, title, { anchor: "middle", size: 14, weight: "bold" });
+  let ang = -Math.PI / 2;
+  for (let i = 0; i < values.length; i++) {
+    const frac = values[i] / total, a2 = ang + frac * 2 * Math.PI;
+    const x1 = cx + r * Math.cos(ang), y1 = cy + r * Math.sin(ang);
+    const x2 = cx + r * Math.cos(a2), y2 = cy + r * Math.sin(a2);
+    const large = frac > 0.5 ? 1 : 0;
+    if (frac >= 0.9999) {
+      s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + cols[i % 5] + '" stroke="#fff"/>';
+    } else {
+      s += '<path d="M' + cx + ' ' + cy + ' L' + x1.toFixed(2) + ' ' + y1.toFixed(2) +
+           ' A' + r + ' ' + r + ' 0 ' + large + ' 1 ' + x2.toFixed(2) + ' ' + y2.toFixed(2) +
+           ' Z" fill="' + cols[i % 5] + '" stroke="#fff" stroke-width="1.4"/>';
+    }
+    const am = ang + frac * Math.PI;
+    const lx = cx + r * 0.62 * Math.cos(am), ly = cy + r * 0.62 * Math.sin(am);
+    s += txt(lx, ly + 4, (frac * 100).toFixed(1) + "%", { anchor: "middle", size: 11.5, fill: "#fff", weight: "bold" });
+    ang = a2;
+  }
+  let ly = Math.max(60, cy - (labels.length * 22) / 2);
+  for (let i = 0; i < labels.length; i++) {
+    const lx = w * 0.68;
+    s += '<rect x="' + lx + '" y="' + (ly - 11) + '" width="13" height="13" fill="' + cols[i % 5] + '"/>';
+    s += txt(lx + 20, ly, labels[i] + "  (" + values[i] + ")", { size: 12.5 });
+    ly += 22;
+  }
+  return s + "</svg>";
+}
+
+function confusionPanels(classes, per, thresholds, w, h) {
+  const cols = classes.length;
+  const pw = w / cols, cellx = Math.min(58, pw * 0.30), celly = 46;
+  let s = svgOpen(w, h);
+  s += txt(w / 2, 24, "One-vs-Rest Confusion Matrices (test split)", { anchor: "middle", size: 14.5, weight: "bold" });
+  for (let i = 0; i < cols; i++) {
+    const ox = i * pw + pw / 2 - cellx, oy = 76;
+    const d = per[i];
+    // order: row = actual Neg/Pos, col = pred Neg/Pos
+    const grid = [[d.tn, d.fp], [d.fn, d.tp]];
+    const maxv = Math.max(d.tn, d.fp, d.fn, d.tp) || 1;
+    s += txt(i * pw + pw / 2, oy - 14, classes[i] + "  (thr " + thresholds[i].toFixed(2) + ")",
+             { anchor: "middle", size: 12.5, weight: "bold" });
+    for (let r = 0; r < 2; r++) {
+      for (let c = 0; c < 2; c++) {
+        const v = grid[r][c], t = v / maxv;
+        const fill = "rgb(" + Math.round(255 - 160 * t) + "," + Math.round(255 - 108 * t) + "," + Math.round(255 - 55 * t) + ")";
+        s += '<rect x="' + (ox + c * cellx) + '" y="' + (oy + r * celly) + '" width="' + cellx +
+             '" height="' + celly + '" fill="' + fill + '" stroke="#fff" stroke-width="2"/>';
+        s += txt(ox + c * cellx + cellx / 2, oy + r * celly + celly / 2 + 5, String(v),
+                 { anchor: "middle", size: 14, weight: "bold", fill: t > 0.55 ? "#fff" : "#111" });
+      }
+    }
+    s += txt(ox + cellx, oy + 2 * celly + 22, "Predicted →", { anchor: "middle", size: 11.5 });
+    s += txt(ox - 12, oy + celly, "Actual →", { anchor: "middle", size: 11.5, rotate: -90 });
+    s += txt(ox + cellx / 2, oy - 2, "Neg", { anchor: "middle", size: 11 });
+    s += txt(ox + cellx * 1.5, oy - 2, "Pos", { anchor: "middle", size: 11 });
+    s += txt(ox - 6, oy + celly * 0.5 + 4, "Neg", { anchor: "end", size: 11 });
+    s += txt(ox - 6, oy + celly * 1.5 + 4, "Pos", { anchor: "end", size: 11 });
+  }
+  return s + "</svg>";
+}
+
+/* =====================================================================
+   File handling
+   ===================================================================== */
+const FILES = {};
+const REQUIRED = ["classes.npy", "Y_test.npy", "Y_test_probabilities.npy"];
+const OPTIONAL = ["Y_train.npy", "Y_val.npy", "best_thresholds.npy", "best_threshold.npy"];
+
+const picker = document.getElementById("picker");
+const drop = document.getElementById("drop");
+const filelist = document.getElementById("filelist");
+const goBtn = document.getElementById("go");
+const statusEl = document.getElementById("status");
+const outEl = document.getElementById("out");
+
+drop.addEventListener("click", () => picker.click());
+picker.addEventListener("change", e => addFiles(e.target.files));
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("hot"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("hot"); }));
+drop.addEventListener("drop", e => addFiles(e.dataTransfer.files));
+
+function addFiles(list) {
+  Array.from(list).forEach(f => {
+    const base = f.name.toLowerCase();
+    if (base.endsWith(".npy")) FILES[f.name] = f;
+  });
+  refresh();
+}
+function refresh() {
+  let html = "";
+  REQUIRED.forEach(n => {
+    html += (FILES[n] ? '<span class="ok">✓ ' + n + "</span>" : '<span class="miss">✗ ' + n + " (required)</span>") + " &nbsp; ";
+  });
+  OPTIONAL.forEach(n => {
+    if (FILES[n]) html += '<span class="ok">✓ ' + n + "</span> &nbsp; ";
+  });
+  filelist.innerHTML = html;
+  goBtn.disabled = !REQUIRED.every(n => FILES[n]);
+}
+document.getElementById("clear").addEventListener("click", () => {
+  Object.keys(FILES).forEach(k => delete FILES[k]);
+  outEl.innerHTML = ""; statusEl.style.display = "none"; refresh();
+});
+refresh();
+
+/* =====================================================================
+   Main
+   ===================================================================== */
+goBtn.addEventListener("click", async () => {
+  try {
+    goBtn.disabled = true;
+    statusEl.style.display = "block";
+    statusEl.textContent = "Reading files ...";
+    outEl.innerHTML = "";
+    await new Promise(r => setTimeout(r, 30));
+    await run();
+  } catch (err) {
+    statusEl.innerHTML = "<b>Error:</b> " + esc(err.message);
+  } finally {
+    goBtn.disabled = false;
+  }
+});
+
+async function readNpy(name) {
+  const buf = await FILES[name].arrayBuffer();
+  return parseNpy(buf);
+}
+
+async function run() {
+  const classesNpy = await readNpy("classes.npy");
+  const CLASSES = classesNpy.strings || ["NORM", "MI", "STTC", "HYP", "CD"];
+  const C = CLASSES.length;
+
+  const YtestRaw = await readNpy("Y_test.npy");
+  const Ytest = toMatrix(YtestRaw, C).map(r => r.map(v => (v >= 0.5 ? 1 : 0)));
+  const probRaw = await readNpy("Y_test_probabilities.npy");
+  if (probRaw.shape.length !== 2 || probRaw.shape[1] !== C)
+    throw new Error("Y_test_probabilities.npy shape " + JSON.stringify(probRaw.shape) + " does not match " + C + " classes");
+  const Yprob = toMatrix(probRaw, C);
+
+  if (Ytest.length !== Yprob.length)
+    throw new Error("Y_test (" + Ytest.length + ") and probabilities (" + Yprob.length + ") have different record counts");
+
+  let thresholds = new Array(C).fill(0.5), thrNote = "default 0.50";
+  if (FILES["best_thresholds.npy"]) {
+    const t = (await readNpy("best_thresholds.npy")).values.slice(0, C);
+    if (t.length === C) { thresholds = t; thrNote = "best_thresholds.npy (per-class validation sweep)"; }
+  } else if (FILES["best_threshold.npy"]) {
+    const t = (await readNpy("best_threshold.npy")).values;
+    thresholds = new Array(C).fill(t[0]); thrNote = "best_threshold.npy (single global threshold)";
+  }
+
+  const Ypred = Yprob.map((row, i) => row.map((p, c) => (p >= thresholds[c] ? 1 : 0)));
+  const M = computeMetrics(Ytest, Ypred);
+
+  // Unweighted binary cross-entropy: an exact function of the saved probabilities.
+  let bceVal = 0;
+  {
+    const EPS = 1e-7;
+    let s = 0;
+    for (let i = 0; i < Ytest.length; i++) {
+      for (let c = 0; c < C; c++) {
+        const y = Ytest[i][c];
+        const p = Math.min(1 - EPS, Math.max(EPS, Yprob[i][c]));
+        s += -(y * Math.log(p) + (1 - y) * Math.log(1 - p));
+      }
+    }
+    bceVal = s / (Ytest.length * C);
+  }
+
+  // ROC / PR
+  const roc = [], pr = [];
+  for (let c = 0; c < C; c++) {
+    const yt = Ytest.map(r => r[c]), ys = Yprob.map(r => r[c]);
+    roc.push(rocCurve(yt, ys));
+    pr.push(prCurve(yt, ys));
+  }
+  const aucs = roc.filter(Boolean).map(r => r.auc);
+  const macroAuc = aucs.length ? aucs.reduce((a, b) => a + b, 0) / aucs.length : null;
+  const aps = pr.filter(Boolean).map(r => r.ap);
+  const macroAp = aps.length ? aps.reduce((a, b) => a + b, 0) / aps.length : null;
+
+  // micro ROC (flattened)
+  const flatY = [], flatS = [];
+  for (let i = 0; i < Ytest.length; i++) for (let c = 0; c < C; c++) { flatY.push(Ytest[i][c]); flatS.push(Yprob[i][c]); }
+  const microRoc = rocCurve(flatY, flatS);
+
+  // splits for the pie chart
+  let trainPos = null, valPos = null;
+  if (FILES["Y_train.npy"]) trainPos = toMatrix(await readNpy("Y_train.npy"), C).map(r => r.map(v => (v >= .5 ? 1 : 0)));
+  if (FILES["Y_val.npy"]) valPos = toMatrix(await readNpy("Y_val.npy"), C).map(r => r.map(v => (v >= .5 ? 1 : 0)));
+  const testPos = CLASSES.map((_, c) => Ytest.reduce((a, r) => a + r[c], 0));
+  const sumPos = (m) => CLASSES.map((_, c) => m.reduce((a, r) => a + r[c], 0));
+
+  build(CLASSES, M, roc, pr, macroAuc, macroAp, microRoc, thresholds, thrNote,
+        testPos, Ytest.length, trainPos ? sumPos(trainPos) : null,
+        trainPos ? trainPos.length : null, valPos ? sumPos(valPos) : null,
+        valPos ? valPos.length : null, bceVal);
+
+  statusEl.innerHTML =
+    "<b>Done.</b> Built from your real files. Decision thresholds: <b>" + esc(thrNote) + "</b>. " +
+    "Test records: <b>" + Ytest.length + "</b>. Nothing was uploaded or written to disk.";
+}
+
+/* =====================================================================
+   Rendering
+   ===================================================================== */
+function container(title, svg, caption, fname) {
+  const div = document.createElement("div");
+  div.className = "figwrap";
+  div.innerHTML = '<div class="figtitle">' + esc(title) + "</div>" +
+    '<div class="svgbox">' + svg + "</div>" +
+    '<div class="cap">' + esc(caption) + "</div>";
+  const bar = document.createElement("div");
+  bar.style.marginTop = "8px";
+  const bp = document.createElement("button"); bp.textContent = "Download PNG (600 dpi)";
+  const bs = document.createElement("button"); bs.textContent = "Download SVG"; bs.className = "ghost";
+  bp.onclick = () => savePng(div.querySelector("svg"), fname + ".png", 3);
+  bs.onclick = () => saveSvg(div.querySelector("svg"), fname + ".svg");
+  bar.appendChild(bp); bar.appendChild(bs);
+  div.appendChild(bar);
+  return div;
+}
+function saveSvg(svg, name) {
+  const c = svg.cloneNode(true);
+  c.setAttribute("xmlns", NS);
+  const blob = new Blob([new XMLSerializer().serializeToString(c)], { type: "image/svg+xml;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+function savePng(svg, name, scale) {
+  const c = svg.cloneNode(true);
+  c.setAttribute("xmlns", NS);
+  const w = +svg.getAttribute("width"), h = +svg.getAttribute("height");
+  const url = "data:image/svg+xml;charset=utf-8," +
+              encodeURIComponent(new XMLSerializer().serializeToString(c));
+  const img = new Image();
+  img.onload = () => {
+    const cv = document.createElement("canvas");
+    cv.width = w * scale; cv.height = h * scale;
+    const ctx = cv.getContext("2d");
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+    cv.toBlob(b => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(b); a.download = name; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    }, "image/png");
+  };
+  img.onerror = () => alert("PNG export failed in this browser — use Download SVG instead.");
+  img.src = url;
+}
+function tableHTML(headers, rows) {
+  let s = "<table><thead><tr>" + headers.map(h => "<th>" + esc(h) + "</th>").join("") + "</tr></thead><tbody>";
+  rows.forEach(r => { s += "<tr>" + r.map(v => "<td>" + esc(v) + "</td>").join("") + "</tr>"; });
+  return s + "</tbody></table>";
+}
+
+function build(CLASSES, M, roc, pr, macroAuc, macroAp, microRoc, thresholds, thrNote,
+               testPos, nTest, trainPosA, nTrain, valPosA, nVal, bceVal) {
+  const f = (v) => (typeof v === "number" && isFinite(v)) ? v.toFixed(3) : "—";
+  const f4 = (v) => (typeof v === "number" && isFinite(v)) ? v.toFixed(4) : "—";
+  const NA = "Insufficient data available to calculate this metric.";
+  const C = CLASSES.length;
+  const cols = ["#2166ac", "#b2182b", "#1b7837", "#762a83", "#e08214"];
+  const blocks = [];
+  const pushHTML = (s) => { const d = document.createElement("div"); d.innerHTML = s; blocks.push(d); };
+
+  /* ---------- Table 1 : class distribution ---------- */
+  pushHTML("<h2>Table 1 — Dataset / Class Distribution</h2>");
+  const t1rows = CLASSES.map((c, i) => [c,
+    trainPosA ? trainPosA[i] : "—", valPosA ? valPosA[i] : "—", testPos[i]]);
+  t1rows.push(["Total records", trainPosA ? nTrain : "—", valPosA ? nVal : "—", nTest]);
+  pushHTML(tableHTML(["Class", "Train positives", "Val positives", "Test positives"], t1rows) +
+    '<div class="cap">Table 1. Distribution of disease categories in the PTB-XL splits. ' +
+    'Multi-label: a record may carry more than one diagnosis, so positive counts do not sum to the record total.</div>');
+  if (!trainPosA) pushHTML('<div class="note">Add <code>Y_train.npy</code> / <code>Y_val.npy</code> to fill the train and validation columns.</div>');
+
+  /* ---------- Figure 5 : pie charts ---------- */
+  pushHTML("<h2>Figure 5 — Class Distribution (pie chart)</h2>");
+  const pie1 = pieChart(CLASSES.map((c, i) => c + " (" + testPos[i] + ")"), testPos,
+                        "Test split (N = " + nTest + " records)", 860, 460);
+  let figs = container("Figure 5a — Evaluation (test) dataset", pie1,
+    "Figure 5. Distribution of disease categories in the evaluation dataset.", "fig5_class_distribution_test");
+  blocks.push(figs);
+  if (trainPosA) {
+    const pie2 = pieChart(CLASSES.map((c, i) => c + " (" + trainPosA[i] + ")"), trainPosA,
+                          "Training split (N = " + nTrain + " records)", 860, 460);
+    blocks.push(container("Figure 5b — Training dataset", pie2,
+      "Distribution of disease categories in the training split.", "fig5b_class_distribution_train"));
+  }
+
+  /* ---------- Figure 3 : confusion matrices ---------- */
+  const cmSvg = confusionPanels(CLASSES, M.per, thresholds, 1180, 300);
+  blocks.push(container("Figure 3 — Confusion matrix", cmSvg,
+    "Figure 3. Confusion matrix of the proposed Heart Disease Risk Assessment Agent.", "fig3_confusion_matrix"));
+
+  /* ---------- Figure 4 : precision / recall / F1 ---------- */
+  const barSvg = groupedBars(CLASSES, [
+    { label: "Precision", color: "#2166ac", values: M.per.map(d => d.prec) },
+    { label: "Recall", color: "#b2182b", values: M.per.map(d => d.rec) },
+    { label: "F1-score", color: "#1b7837", values: M.per.map(d => d.f1) }
+  ], 900, 520);
+  blocks.push(container("Figure 4 — Class-wise precision, recall and F1-score", barSvg,
+    "Figure 4. Class-wise precision, recall, and F1-score.", "fig4_classwise_precision_recall_f1"));
+
+  /* ---------- Figure 6 : ROC ---------- */
+  const rocSeries = [];
+  for (let c = 0; c < C; c++) if (roc[c]) rocSeries.push({
+    label: CLASSES[c] + " (AUC = " + roc[c].auc.toFixed(3) + ")",
+    color: cols[c % 5], x: roc[c].fpr, y: roc[c].tpr
+  });
+  if (microRoc) rocSeries.push({ label: "Micro-average (AUC = " + microRoc.auc.toFixed(3) + ")",
+    color: "#000", x: microRoc.fpr, y: microRoc.tpr, dash: "3 3" });
+  blocks.push(container("Figure 6 — ROC curves",
+    curveChart(rocSeries, "False Positive Rate", "True Positive Rate (Sensitivity)", 780, 620, true),
+    "Figure 6. Receiver operating characteristic curves for multi-class heart disease classification.",
+    "fig6_roc_curves"));
+
+  /* ---------- Figure 7 : PR ---------- */
+  const prSeries = [];
+  for (let c = 0; c < C; c++) if (pr[c]) prSeries.push({
+    label: CLASSES[c] + " (AP = " + pr[c].ap.toFixed(3) + ")",
+    color: cols[c % 5], x: pr[c].recall, y: pr[c].precision
+  });
+  blocks.push(container("Figure 7 — Precision–recall curves",
+    curveChart(prSeries, "Recall (Sensitivity)", "Precision", 780, 620, false),
+    "Figure 7. Precision-recall curves for multi-class heart disease classification.",
+    "fig7_precision_recall_curves"));
+
+  /* ---------- Figure 8 : overall ---------- */
+  const names = ["Micro\nPrecision", "Micro\nRecall", "Micro\nF1", "Macro\nF1",
+                 "Weighted\nF1", "Macro\nROC-AUC", "Micro\nROC-AUC", "Test\nAccuracy"];
+  const vals = [M.micro.prec, M.micro.rec, M.micro.f1, M.macro.f1, M.weighted.f1,
+                macroAuc || 0, microRoc ? microRoc.auc : 0, M.elementAcc];
+  blocks.push(container("Figure 8 — Overall model performance",
+    simpleBars(names, vals, 940, 540),
+    "Figure 8. Overall performance of the proposed model.", "fig8_overall_performance"));
+
+  /* ---------- Table 2 : classification report ---------- */
+  let t2 = CLASSES.map((c, i) => [c, f(M.per[i].prec), f(M.per[i].rec), f(M.per[i].f1), String(M.per[i].support)]);
+  const tot = nTest * C;
+  t2.push(["Micro average", f(M.micro.prec), f(M.micro.rec), f(M.micro.f1), String(tot)]);
+  t2.push(["Macro average", f(M.macro.prec), f(M.macro.rec), f(M.macro.f1), String(tot)]);
+  t2.push(["Weighted average", f(M.weighted.prec), f(M.weighted.rec), f(M.weighted.f1), String(tot)]);
+  pushHTML("<h2>Table 2 — Classification Report</h2>" +
+      tableHTML(["Class", "Precision", "Recall", "F1-score", "Support"], t2) +
+      '<div class="cap">Table 2. Classification report on the PTB-XL test split ' +
+      '(decision thresholds: ' + esc(thrNote) + ').</div>');
+
+  /* ---------- Table 3 : overall metrics ---------- */
+  const t3rows = [
+    ["Test accuracy (element-wise binary accuracy)", f4(M.elementAcc)],
+    ["Subset accuracy (exact multi-label match)", f4(M.subsetAcc)],
+    ["Hamming loss", f4(M.hamming)],
+    ["Precision (micro)", f4(M.micro.prec)],
+    ["Precision (macro)", f4(M.macro.prec)],
+    ["Precision (weighted)", f4(M.weighted.prec)],
+    ["Recall / Sensitivity (micro)", f4(M.micro.rec)],
+    ["Recall / Sensitivity (macro)", f4(M.macro.rec)],
+    ["Recall / Sensitivity (weighted)", f4(M.weighted.rec)],
+    ["Specificity (macro)", f4(M.macro.spec)],
+    ["Specificity (micro)", f4(M.micro.spec)],
+    ["F1-score (micro)", f4(M.micro.f1)],
+    ["F1-score (macro)", f4(M.macro.f1)],
+    ["F1-score (weighted)", f4(M.weighted.f1)],
+    ["ROC-AUC (macro)", f4(macroAuc)],
+    ["ROC-AUC (micro)", microRoc ? f4(microRoc.auc) : NA],
+    ["PR-AUC / Average Precision (macro)", f4(macroAp)],
+    ["Validation accuracy (fold 9)", NA + " — printed by src/03 but never saved to disk"],
+    ["Test loss (training-time weighted BCE)", NA + " — class weights were never saved; model loads with compile=False"],
+    ["Test binary cross-entropy (unweighted, from saved probabilities)", f4(bceVal)]
+  ];
+  pushHTML("<h2>Table 3 — Overall Evaluation Metrics</h2>" +
+      tableHTML(["Metric", "Value"], t3rows) +
+      '<div class="cap">Table 3. Overall evaluation metrics of the proposed model. ' +
+      '“Test accuracy” is element-wise binary accuracy (the quantity reported by src/04_results.py), ' +
+      'not subset accuracy.</div>');
+
+  /* ---------- Table 4 : confusion counts ---------- */
+  const t4 = CLASSES.map((c, i) => [c, String(M.per[i].tp), String(M.per[i].fp),
+                                    String(M.per[i].fn), String(M.per[i].tn), thresholds[i].toFixed(2)]);
+  pushHTML("<h2>Table 4 — One-vs-Rest Confusion-Matrix Counts</h2>" +
+      tableHTML(["Class", "TP", "FP", "FN", "TN", "Threshold"], t4));
+
+  pushHTML('<div class="note"><b>Missing values.</b> “Validation accuracy” and “Test loss” cannot be ' +
+       'computed from the project files. Validation accuracy was printed by <code>src/03_evaluate_model.py</code> ' +
+       'but never saved, and the custom weighted BCE loss depends on class weights that ' +
+       '<code>src/02_train_model.py</code> never persisted (every script loads the model with ' +
+       '<code>compile=False</code>). Both are reported as <i>' + NA + '</i> rather than estimated. ' +
+       'The unweighted BCE above is an exact function of your saved probabilities and is offered only as a labelled substitute.</div>');
+
+  outEl.innerHTML = "";
+  blocks.forEach(b => outEl.appendChild(b));
+
+  window.__metrics = M;
+  window.__thresholds = thresholds;
+}
+
+/* =====================================================================
+   Self-test (used to verify the maths without touching real data)
+   ===================================================================== */
+window.__selftest = function () {
+  function build(descr, shape, arr) {
+    const dict = "{'descr': '" + descr + "', 'fortran_order': False, 'shape': (" +
+                 shape.join(", ") + (shape.length > 1 ? ")" : ",)") + ", }";
+    let total = 10 + dict.length + 1;
+    const pad = (64 - (total % 64)) % 64;
+    const header = dict + " ".repeat(pad) + "\n";
+    const hb = new TextEncoder().encode(header);
+    const buf = new ArrayBuffer(10 + hb.length + arr.byteLength);
+    const dv = new DataView(buf);
+    dv.setUint8(0, 0x93); dv.setUint8(1, 0x4E);
+    new Uint8Array(buf, 6, 2).set([1, 0]);   // magic is 6 bytes; version is at offset 6
+    dv.setUint16(8, hb.length, true);
+    new Uint8Array(buf, 10, hb.length).set(hb);
+    new Uint8Array(buf, 10 + hb.length).set(new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength));
+    return buf;
+  }
+  const res = {};
+  // 1. parse a float64 npy
+  const f = new Float64Array([0.6, 0.7, 0.6, 0.4, 0.4]);
+  const p = parseNpy(build("<f8", [5], f));
+  res.parsedF8 = p.values;
+  res.shape = p.shape;
+  res.descr = p.descr;
+  // 2. parse a U4 npy
+  const u = new Uint32Array(20);
+  ["NORM", "MI", "STTC", "HYP", "CD"].forEach((s, i) => {
+    for (let k = 0; k < s.length; k++) u[i * 4 + k] = s.charCodeAt(k);
+  });
+  res.parsedU4 = parseNpy(build("<U4", [5], u)).strings;
+  // 3. metrics on a deterministic 4x2 toy problem
+  const Y = [[1, 0], [1, 0], [0, 1], [0, 0]];
+  const P = [[1, 0], [0, 0], [0, 1], [0, 1]];
+  const M = computeMetrics(Y, P);
+  res.toyPerClass = M.per.map(d => ({ tp: d.tp, fp: d.fp, fn: d.fn, tn: d.tn, prec: +d.prec.toFixed(4), rec: +d.rec.toFixed(4) }));
+  res.toyElementAcc = M.elementAcc;
+  res.toySubsetAcc = M.subsetAcc;
+  res.toyHamming = M.hamming;
+  res.toyMicroF1 = +M.micro.f1.toFixed(4);
+  // 4. ROC of a perfectly ranked problem must be 1.0
+  const r1 = rocCurve([0, 0, 1, 1], [0.1, 0.2, 0.8, 0.9]);
+  const r2 = rocCurve([0, 1, 0, 1], [0.5, 0.5, 0.5, 0.5]);   // all ties -> 0.5
+  res.aucPerfect = +r1.auc.toFixed(4);
+  res.aucChance = +r2.auc.toFixed(4);
+  const rp = prCurve([0, 1, 0, 1], [0.5, 0.5, 0.5, 0.5]);
+  res.apChance = +rp.ap.toFixed(4);
+  // 5. SVG smoke test
+  res.pieSvgLen = pieChart(["A", "B"], [3, 1], "t", 400, 300).length;
+  res.rocSvgLen = curveChart([{ label: "x", color: "#000", x: [0, 1], y: [0, 1] }], "a", "b", 400, 300).length;
+  return res;
+};
+</script>
+</body>
+</html>
