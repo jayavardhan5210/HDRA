@@ -1,0 +1,6 @@
+Class,Description,Positive samples (test),Negative samples (test)
+NORM,Normal ECG,870,1033
+MI,Myocardial Infarction,473,1430
+STTC,ST/T Change,464,1439
+HYP,Hypertrophy,240,1663
+CD,Conduction Disturbance,422,1481

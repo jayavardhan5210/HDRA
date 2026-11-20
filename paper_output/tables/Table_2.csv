@@ -1,0 +1,21 @@
+Layer,Type,Output shape,Parameters
+conv1d,Conv1D,"(None, 1000, 64)",5440
+batch_normalization,BatchNormalization,"(None, 1000, 64)",256
+max_pooling1d,MaxPooling1D,"(None, 500, 64)",0
+dropout,Dropout,"(None, 500, 64)",0
+conv1d_1,Conv1D,"(None, 500, 128)",41088
+batch_normalization_1,BatchNormalization,"(None, 500, 128)",512
+max_pooling1d_1,MaxPooling1D,"(None, 250, 128)",0
+dropout_1,Dropout,"(None, 250, 128)",0
+conv1d_2,Conv1D,"(None, 250, 256)",98560
+batch_normalization_2,BatchNormalization,"(None, 250, 256)",1024
+max_pooling1d_2,MaxPooling1D,"(None, 125, 256)",0
+dropout_2,Dropout,"(None, 125, 256)",0
+conv1d_3,Conv1D,"(None, 125, 256)",196864
+batch_normalization_3,BatchNormalization,"(None, 125, 256)",1024
+global_average_pooling1d,GlobalAveragePooling1D,"(None, 256)",0
+dense,Dense,"(None, 256)",65792
+dropout_3,Dropout,"(None, 256)",0
+dense_1,Dense,"(None, 128)",32896
+dropout_4,Dropout,"(None, 128)",0
+dense_2,Dense,"(None, 5)",645

@@ -1,0 +1,5 @@
+Metric,Value
+Training Accuracy,91.07%
+Validation Accuracy,88.12%
+Test Binary Accuracy,87.58%
+Mean ROC-AUC,0.9052

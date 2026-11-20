@@ -1,0 +1,151 @@
+{
+  "layers": [
+    [
+      "Conv1D",
+      "64 filters, kernel size 7, ReLU, same padding"
+    ],
+    [
+      "MaxPooling1D",
+      "pool size 2"
+    ],
+    [
+      "Dropout",
+      "0.15"
+    ],
+    [
+      "Conv1D",
+      "128 filters, kernel size 5, ReLU, same padding"
+    ],
+    [
+      "MaxPooling1D",
+      "pool size 2"
+    ],
+    [
+      "Dropout",
+      "0.20"
+    ],
+    [
+      "Conv1D",
+      "256 filters, kernel size 3, ReLU, same padding"
+    ],
+    [
+      "MaxPooling1D",
+      "pool size 2"
+    ],
+    [
+      "Dropout",
+      "0.25"
+    ],
+    [
+      "Conv1D",
+      "256 filters, kernel 3, ReLU"
+    ],
+    [
+      "Conv1D",
+      "128 filters, kernel 3, ReLU"
+    ],
+    [
+      "Dense",
+      "256 units, ReLU"
+    ],
+    [
+      "Dropout",
+      "0.35"
+    ],
+    [
+      "Dense",
+      "128 units, ReLU"
+    ],
+    [
+      "Dropout",
+      "0.25"
+    ],
+    [
+      "Dense",
+      "5 units, Sigmoid"
+    ],
+    [
+      "MaxPooling1D",
+      "pool=2"
+    ],
+    [
+      "Dropout",
+      "rate=0.15"
+    ],
+    [
+      "MaxPooling1D",
+      "pool=2"
+    ],
+    [
+      "Dropout",
+      "rate=0.20"
+    ],
+    [
+      "MaxPooling1D",
+      "pool=2"
+    ],
+    [
+      "Dropout",
+      "rate=0.25"
+    ],
+    [
+      "Dense",
+      "ReLU"
+    ],
+    [
+      "Dropout",
+      "rate=0.35"
+    ],
+    [
+      "Dense",
+      "ReLU"
+    ],
+    [
+      "Dropout",
+      "rate=0.25"
+    ],
+    [
+      "Dense",
+      "Sigmoid Output"
+    ]
+  ],
+  "layers_file": "build_full_word_paper.py",
+  "callbacks": [
+    "EarlyStopping",
+    "ReduceLROnPlateau",
+    "ModelCheckpoint"
+  ],
+  "web_framework": "Flask",
+  "mentions_ptbxl": true,
+  "files_scanned": [
+    "app.py",
+    "build_full_word_paper.py",
+    "ecg_image_processor.py",
+    "src\\01_prepare_data.py",
+    "src\\02_train_model.py",
+    "src\\03_evaluate_model.py",
+    "src\\04_results.py",
+    "src\\05_predict.py",
+    "src\\06_make_sample.py",
+    "src\\07_optimize_thresholds.py",
+    "src\\08_optimize_accuracy_thresholds.py",
+    "src\\08_test_thresholds.py",
+    "src\\09_error_analysis.py"
+  ],
+  "optimizer": {
+    "tf.keras.optimizers.Adam(\n    learning_rate=0.0003\n)": "src\\02_train_model.py",
+    "optimizer": "src\\02_train_model.py"
+  },
+  "loss": {
+    "weighted_focal_loss": "src\\02_train_model.py"
+  },
+  "learning_rate": {
+    "0.0003": "src\\02_train_model.py"
+  },
+  "epochs": {
+    "50": "src\\02_train_model.py"
+  },
+  "batch_size": {
+    "32": "src\\03_evaluate_model.py"
+  }
+}
