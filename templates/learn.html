@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Heart Disease Risk Assessment Agent</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: #f8f9fa;
+        }
+
+
+        .hero {
+            min-height: 100vh;
+
+            display: flex;
+            flex-direction: column;
+
+            justify-content: center;
+            align-items: center;
+
+            padding: 50px 8%;
+
+            background: linear-gradient(to right,
+                    #ffffff,
+                    #ffeaea);
+        }
+
+        .hero h1 {
+            font-size: 55px;
+            color: #d32f2f;
+
+            text-align: center;
+
+            margin-bottom: 55px;
+        }
+
+        .hero-content {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 60px;
+        }
+
+        .hero-image {
+            width: 45%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hero-image img {
+            width: 420px;
+            max-width: 100%;
+            border-radius: 20px;
+            transition: 0.4s;
+        }
+
+        .hero-image img:hover {
+            transform: scale(1.05);
+        }
+
+        .hero-text {
+            width: 50%;
+        }
+
+        .hero-text p {
+            font-size: 19px;
+            color: #555;
+            line-height: 1.8;
+            margin-bottom: 25px;
+        }
+
+        .features {
+            margin-bottom: 30px;
+        }
+
+        .features p {
+            font-size: 17px;
+            color: #222;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 14px 30px;
+            margin-right: 12px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 17px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .btn1 {
+            background: #d32f2f;
+            color: white;
+        }
+
+        .btn1:hover {
+            background: #b71c1c;
+            transform: translateY(-2px);
+        }
+
+        .btn2 {
+            border: 2px solid #d32f2f;
+            color: #d32f2f;
+        }
+
+        .btn2:hover {
+            background: #d32f2f;
+            color: white;
+        }
+
+        .about-section {
+            padding: 100px 8%;
+            background: #ffffff;
+            text-align: center;
+        }
+
+        .about-container {
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        .about-section h2 {
+            font-size: 42px;
+            color: #d32f2f;
+            margin-bottom: 20px;
+        }
+
+        .about-intro {
+            max-width: 850px;
+            margin: 0 auto 60px;
+            font-size: 18px;
+            line-height: 1.8;
+            color: #666;
+        }
+
+        .about-section h3 {
+            font-size: 30px;
+            color: #333;
+            margin-bottom: 35px;
+        }
+
+        .about-cards {
+            display: grid;
+            grid-template-columns:
+                repeat(3, 1fr);
+            gap: 25px;
+        }
+
+        .about-card {
+            padding: 30px 25px;
+            background: #fff8f8;
+            border: 1px solid #f3d2d2;
+            border-radius: 16px;
+            transition: 0.3s;
+        }
+
+        .about-card:hover {
+            transform: translateY(-8px);
+            box-shadow:
+                0 12px 25px rgba(211, 47, 47, 0.12);
+        }
+
+        .icon {
+            font-size: 42px;
+            margin-bottom: 15px;
+        }
+
+        .about-card h4 {
+            font-size: 20px;
+            color: #d32f2f;
+            margin-bottom: 12px;
+        }
+
+        .about-card p {
+            font-size: 15px;
+            line-height: 1.7;
+            color: #666;
+        }
+
+        @media(max-width:900px) {
+
+            .hero h1 {
+                font-size: 40px;
+            }
+
+            .hero-content {
+                flex-direction: column;
+            }
+
+            .hero-image,
+            .hero-text {
+                width: 100%;
+
+                text-align: center;
+            }
+
+            .features p {
+                text-align: center;
+            }
+
+            .about-cards {
+                grid-template-columns:
+                    repeat(2, 1fr);
+            }
+
+        }
+
+
+        @media(max-width:600px) {
+
+            .hero {
+                padding: 40px 5%;
+            }
+
+            .hero h1 {
+                font-size: 32px;
+                margin-bottom: 35px;
+            }
+
+            .hero-text p {
+                font-size: 16px;
+            }
+
+            .hero-image img {
+                width: 300px;
+            }
+
+            .about-section {
+                padding: 70px 5%;
+            }
+
+            .about-section h2 {
+                font-size: 32px;
+            }
+
+            .about-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .btn {
+                margin-bottom: 10px;
+            }
+
+        }
+    </style>
+</head>
+
+<body>
+
+    <section id="about" class="about-section">
+
+        <div class="about-container">
+
+            <h2> About the Project</h2>
+            <p class="about-intro">
+
+                Heart Disease Risk Assessment Agent is a
+                Deep Learning-based system designed to
+                assist in the early assessment of heart
+                disease.
+
+                The system analyzes patient health
+                information and ECG signals to generate
+                an AI-assisted health assessment and
+                support early health awareness.
+
+            </p>
+            <h3> What We Do </h3>
+            <div class="about-cards">
+                <div class="about-card">
+                    <div class="icon">
+                        👤 </div>
+                    <h4>Patient Data Collection </h4>
+
+                    <p>
+
+                        Collect relevant patient health
+                        information such as age, gender,
+                        blood pressure, cholesterol, BMI
+                        and other health parameters.
+
+                    </p>
+
+                </div>
+
+
+
+                <!-- Card 2 -->
+
+                <div class="about-card">
+
+                    <div class="icon">
+                        📈
+                    </div>
+
+                    <h4>
+                        ECG Signal Analysis
+                    </h4>
+
+                    <p>
+
+                        Allow users to upload ECG signals
+                        or reports for further analysis
+                        using Deep Learning techniques.
+
+                    </p>
+
+                </div>
+
+
+
+                <!-- Card 3 -->
+
+                <div class="about-card">
+
+                    <div class="icon">
+                        🧠
+                    </div>
+
+                    <h4>
+                        Deep Learning
+                    </h4>
+
+                    <p>
+
+                        Use Artificial Neural Networks
+                        for patient health data and
+                        Convolutional Neural Networks
+                        for ECG signal analysis.
+
+                    </p>
+
+                </div>
+
+
+
+                <!-- Card 4 -->
+
+                <div class="about-card">
+
+                    <div class="icon">
+                        📊
+                    </div>
+
+                    <h4>
+                        Health Assessment
+                    </h4>
+
+                    <p>
+
+                        Analyze the model outputs and
+                        provide an AI-assisted assessment
+                        of the user's heart health.
+
+                    </p>
+
+                </div>
+
+
+
+                <!-- Card 5 -->
+
+                <div class="about-card">
+
+                    <div class="icon">
+                        💡
+                    </div>
+
+                    <h4>
+                        Explainable Results
+                    </h4>
+
+                    <p>
+
+                        Present important factors
+                        contributing to the assessment
+                        in a simple and understandable
+                        format.
+
+                    </p>
+
+                </div>
+
+
+
+                <!-- Card 6 -->
+
+                <div class="about-card">
+
+                    <div class="icon">
+                        ❤️
+                    </div>
+
+                    <h4>
+                        Early Health Awareness
+                    </h4>
+
+                    <p>
+
+                        Support early awareness and
+                        encourage users to seek
+                        appropriate professional
+                        medical guidance when needed.
+
+                    </p>
+
+                </div>
+                <a href="/" class="back">
+                    ← Back to Home
+                </a>
+
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+</body>
+
+</html>

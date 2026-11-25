@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Heart Risk Assessment Result</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(to right, #fff, #ffeaea);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #d32f2f;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 35px;
+        }
+
+        .result-card {
+            background: white;
+            padding: 35px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+            margin-bottom: 25px;
+        }
+
+        .risk-box {
+            text-align: center;
+            padding: 25px;
+            border-radius: 12px;
+            background: #fff5f5;
+            margin-bottom: 30px;
+        }
+
+        .risk-title {
+            font-size: 20px;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        .risk-category {
+            font-size: 38px;
+            font-weight: bold;
+            color: #d32f2f;
+        }
+
+        .score {
+            font-size: 22px;
+            margin-top: 10px;
+            color: #333;
+        }
+
+        .section-title {
+            color: #d32f2f;
+            margin-bottom: 20px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+        }
+
+        .info {
+            background: #fafafa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+        }
+
+        .info span {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .probability {
+            margin-bottom: 18px;
+        }
+
+        .probability-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .progress {
+            width: 100%;
+            height: 12px;
+            background: #eee;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #d32f2f;
+            border-radius: 10px;
+        }
+
+        .shap {
+            text-align: center;
+        }
+
+        .shap img {
+            max-width: 100%;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+        }
+
+        .awareness-list {
+            color: #555;
+            line-height: 2;
+            padding-left: 25px;
+        }
+
+        .awareness-list li {
+            margin-bottom: 5px;
+        }
+
+        .awareness-note {
+            color: #777;
+            line-height: 1.7;
+            margin-top: 18px;
+            font-size: 14px;
+        }
+
+        .buttons {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 13px 28px;
+            margin: 5px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: #d32f2f;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #b71c1c;
+        }
+
+        .btn-secondary {
+            border: 2px solid #d32f2f;
+            color: #d32f2f;
+        }
+
+        .btn-secondary:hover {
+            background: #d32f2f;
+            color: white;
+        }
+
+        .note {
+            text-align: center;
+            color: #777;
+            font-size: 14px;
+            margin-top: 25px;
+            line-height: 1.6;
+        }
+
+        #error {
+            text-align: center;
+            color: #d32f2f;
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 100px;
+        }
+
+        @media(max-width:700px) {
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .result-card {
+                padding: 25px;
+            }
+
+            .risk-category {
+                font-size: 30px;
+            }
+
+        }
+    </style>
+
+</head>
+
+
+<body>
+
+    <div class="container">
+
+        <h1>
+            ❤️ Heart-health Risk Assessment
+        </h1>
+
+        <p class="subtitle">
+            AI-Assisted ECG and Clinical Data Analysis
+        </p>
+
+
+        <div id="error"></div>
+
+
+        <div id="resultContent" style="display:none;">
+
+
+            <!-- OVERALL RISK -->
+
+            <div class="result-card">
+
+                <div class="risk-box">
+
+                    <div class="risk-title">
+                        Overall Risk Assessment
+                    </div>
+
+                    <div class="risk-category" id="riskCategory">
+                        Loading...
+                    </div>
+
+                    <div class="score">
+
+                        Risk Score:
+
+                        <span id="riskScore">
+                            --
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ECG ANALYSIS -->
+
+                <h2 class="section-title">
+                    🧠 ECG Analysis
+                </h2>
+
+
+                <div class="info-grid">
+
+                    <div class="info">
+
+                        ECG Classification:
+
+                        <span id="ecgPrediction">
+                            --
+                        </span>
+
+                    </div>
+
+
+                    <div class="info">
+
+                        ECG Model Confidence:
+
+                        <span id="ecgConfidence">
+                            --
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- ECG PROBABILITIES -->
+
+            <div class="result-card">
+
+                <h2 class="section-title">
+                    📊 ECG Class Probabilities
+                </h2>
+
+                <div id="probabilities"></div>
+
+            </div>
+
+
+            <!-- EXPLAINABLE AI -->
+
+            <div class="result-card shap">
+
+                <h2 class="section-title">
+                    💡 Explainable AI Analysis
+                </h2>
+
+                <p style="
+                    color:#666;
+                    margin-bottom:20px;
+                    line-height:1.7;
+                ">
+
+                    The chart below shows the relative contribution
+                    of selected health factors used in this
+                    prototype assessment.
+
+                </p>
+
+
+                <img id="shapImage" src="" alt="Explainable AI Analysis">
+
+            </div>
+
+
+            <!-- HEALTH AWARENESS -->
+
+            <div class="result-card">
+
+                <h2 class="section-title">
+                    ❤️ Health Awareness
+                </h2>
+
+
+                <p style="
+                    color:#666;
+                    line-height:1.8;
+                    margin-bottom:15px;
+                ">
+
+                    Maintaining healthy daily habits can support
+                    overall heart health. Some general
+                    health-awareness practices include:
+
+                </p>
+
+
+                <ul class="awareness-list">
+
+                    <li>
+                        🏃 Stay physically active regularly
+                        according to your age and ability.
+                    </li>
+
+                    <li>
+                        🥗 Follow a balanced diet with vegetables,
+                        fruits, whole grains and appropriate protein.
+                    </li>
+
+                    <li>
+                        🚭 Avoid smoking and tobacco products.
+                    </li>
+
+                    <li>
+                        🩺 Monitor blood pressure and cholesterol
+                        when recommended.
+                    </li>
+
+                    <li>
+                        😴 Get adequate and consistent sleep.
+                    </li>
+
+                    <li>
+                        🧘 Manage stress through healthy activities
+                        and relaxation.
+                    </li>
+
+                    <li>
+                        💧 Maintain healthy hydration and regular meals.
+                    </li>
+
+                    <li>
+                        👨‍⚕️ Consult a qualified healthcare professional
+                        if you have health concerns or abnormal
+                        test results.
+                    </li>
+
+                </ul>
+
+
+                <p class="awareness-note">
+
+                    These suggestions are provided for general
+                    health awareness only. This AI-assisted
+                    assessment is not a medical diagnosis and
+                    should not replace professional medical advice.
+
+                </p>
+
+            </div>
+
+
+            <!-- BUTTONS -->
+
+            <div class="buttons">
+
+                <a href="/details.html" class="btn btn-primary">
+
+                    🔄 New Assessment
+
+                </a>
+
+
+                <a href="/" class="btn btn-secondary">
+
+                    🏠 Home
+
+                </a>
+
+            </div>
+
+
+            <p class="note">
+
+                Please consult a qualified healthcare professional
+                for medical interpretation of ECG results or
+                concerns about heart health.
+
+            </p>
+
+
+        </div>
+
+    </div>
+
+
+    <script>
+
+
+        // Get stored assessment result
+
+        const storedResult =
+            sessionStorage.getItem(
+                "assessmentResult"
+            );
+
+
+        // No result found
+
+        if (!storedResult) {
+
+            document.getElementById(
+                "error"
+            ).innerText =
+                "No assessment result found. Please complete the assessment first.";
+
+        }
+
+
+        else {
+
+            try {
+
+                // Convert JSON string to object
+
+                const result =
+                    JSON.parse(
+                        storedResult
+                    );
+
+
+                // Check response status
+
+                if (
+                    result.status !==
+                    "success"
+                ) {
+
+                    document.getElementById(
+                        "error"
+                    ).innerText =
+                        "Unable to display the assessment result.";
+
+                }
+
+
+                else {
+
+                    // Show result page
+
+                    document.getElementById(
+                        "resultContent"
+                    ).style.display =
+                        "block";
+
+
+                    // Risk category
+
+                    document.getElementById(
+                        "riskCategory"
+                    ).innerText =
+                        result.risk_category;
+
+
+                    // Risk score
+                    // Backend already sends 0-100 value.
+                    // Do NOT multiply by 100 here.
+
+                    document.getElementById(
+                        "riskScore"
+                    ).innerText =
+                        Number(
+                            result.risk_score
+                        ).toFixed(2)
+                        + "%";
+
+
+                    // ECG prediction
+
+                    document.getElementById(
+                        "ecgPrediction"
+                    ).innerText =
+                        result.ecg_prediction;
+
+
+                    // ECG model confidence
+
+                    document.getElementById(
+                        "ecgConfidence"
+                    ).innerText =
+                        Number(
+                            result.ecg_confidence
+                        ).toFixed(2)
+                        + "%";
+
+
+                    // ECG probabilities
+
+                    const probabilities =
+                        result.probabilities;
+
+
+                    const probabilityContainer =
+                        document.getElementById(
+                            "probabilities"
+                        );
+
+
+                    // Clear old values
+
+                    probabilityContainer.innerHTML =
+                        "";
+
+
+                    // Display every ECG class
+
+                    for (
+                        const className
+                        in probabilities
+                    ) {
+
+                        const value =
+                            Number(
+                                probabilities[
+                                className
+                                ]
+                            );
+
+
+                        const div =
+                            document.createElement(
+                                "div"
+                            );
+
+
+                        div.className =
+                            "probability";
+
+
+                        div.innerHTML = `
+
+                            <div class="probability-header">
+
+                                <span>
+                                    ${className}
+                                </span>
+
+                                <span>
+                                    ${value.toFixed(2)}%
+                                </span>
+
+                            </div>
+
+
+                            <div class="progress">
+
+                                <div
+                                    class="progress-bar"
+                                    style="width:${Math.min(
+                            Math.max(
+                                value,
+                                0
+                            ),
+                            100
+                        )}%;">
+                                </div>
+
+                            </div>
+
+                        `;
+
+
+                        probabilityContainer.appendChild(
+                            div
+                        );
+
+                    }
+
+
+                    // Explainable AI chart
+
+                    if (
+                        result.shap_image_url
+                    ) {
+
+                        document.getElementById(
+                            "shapImage"
+                        ).src =
+                            result.shap_image_url
+                            + "?t="
+                            + Date.now();
+
+                    }
+
+                }
+
+            }
+
+
+            catch (error) {
+
+                console.error(
+                    "Result parsing error:",
+                    error
+                );
+
+
+                document.getElementById(
+                    "error"
+                ).innerText =
+                    "Invalid assessment result.";
+
+            }
+
+        }
+
+    </script>
+
+
+</body>
+
+</html>
